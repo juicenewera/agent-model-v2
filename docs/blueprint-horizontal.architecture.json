@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Agent Zap — blueprint horizontal do fluxo completo",
+    "output": "blueprint-horizontal.html",
+    "quality_profile": "showcase",
+    "viewBox": [1500, 760]
+  },
+  "components": [
+    { "id": "lead", "type": "external", "label": "Lead no WhatsApp", "sublabel": "texto / áudio / imagem", "pos": [30, 45], "size": [135, 52] },
+    { "id": "openwa", "type": "cloud", "label": "OpenWA", "sublabel": "sessão WhatsApp Web", "pos": [205, 45], "size": [135, 52] },
+    { "id": "webhook", "type": "backend", "label": "Express /webhook", "sublabel": "src/server.js", "pos": [380, 45], "size": [150, 52] },
+    { "id": "gates", "type": "security", "label": "Gates e handoff", "sublabel": "identidade · dedup", "pos": [570, 45], "size": [150, 52] },
+    { "id": "queue", "type": "messagebus", "label": "Fila + debounce", "sublabel": "em memória", "pos": [760, 45], "size": [150, 52] },
+    { "id": "handler", "type": "backend", "label": "atenderLead", "sublabel": "agente.js · núcleo", "pos": [950, 45], "size": [160, 52] },
+    { "id": "rag", "type": "database", "label": "RAG no Supabase", "sublabel": "embeddings / pgvector", "pos": [1170, 45], "size": [160, 52] },
+    { "id": "site", "type": "backend", "label": "Leads do site", "sublabel": "varredura Kommo", "pos": [570, 180], "size": [150, 52] },
+    { "id": "resume", "type": "backend", "label": "Retomadas e resgates", "sublabel": "lead sem resposta", "pos": [760, 180], "size": [160, 52] },
+    { "id": "model", "type": "external", "label": "Modelo via API", "sublabel": "OpenAI-compatible", "pos": [1170, 180], "size": [160, 52] },
+    { "id": "timers", "type": "messagebus", "label": "Timers no processo", "sublabel": "scheduler / intervalos", "pos": [380, 315], "size": [160, 52] },
+    { "id": "followups", "type": "messagebus", "label": "Follow-ups", "sublabel": "cadência programada", "pos": [760, 315], "size": [150, 52] },
+    { "id": "guardrails", "type": "security", "label": "Guardrails + regras", "sublabel": "anti-injection · funil", "pos": [950, 315], "size": [165, 52] },
+    { "id": "send", "type": "cloud", "label": "Envio pelo OpenWA", "sublabel": "texto / mídia", "pos": [1170, 315], "size": [160, 52] },
+    { "id": "reconcile", "type": "backend", "label": "Reconciliações", "sublabel": "fila · identidade · CRM", "pos": [570, 500], "size": [165, 52] },
+    { "id": "kommo", "type": "external", "label": "Kommo", "sublabel": "lead · etapa · vendedor", "pos": [950, 500], "size": [150, 52] },
+    { "id": "supabase", "type": "database", "label": "Supabase / Postgres", "sublabel": "histórico · estado", "pos": [1170, 500], "size": [160, 52] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "Runtime Agent Zap", "wraps": ["webhook", "gates", "queue", "handler", "site", "resume", "timers", "followups", "guardrails", "reconcile"] },
+    { "kind": "security-group", "label": "Entrada protegida", "wraps": ["webhook", "gates", "guardrails"] }
+  ],
+  "connections": [
+    { "id": "lead-openwa", "from": "lead", "to": "openwa", "label": "mensagem", "variant": "emphasis" },
+    { "id": "openwa-webhook", "from": "openwa", "to": "webhook", "label": "webhook", "variant": "emphasis" },
+    { "id": "webhook-gates", "from": "webhook", "to": "gates", "label": "normalizar", "variant": "security" },
+    { "id": "gates-queue", "from": "gates", "to": "queue", "label": "aceita", "variant": "security" },
+    { "id": "queue-handler", "from": "queue", "to": "handler", "label": "turno agrupado", "variant": "emphasis" },
+    { "id": "handler-rag", "from": "handler", "to": "rag", "label": "busca conhecimento", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "via": [[1030, 20], [1250, 20]] },
+    { "id": "rag-model", "from": "rag", "to": "model", "label": "trechos", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "handler-model", "from": "handler", "to": "model", "label": "prompt + histórico", "variant": "emphasis", "fromSide": "right", "toSide": "left", "via": [[1135, 71], [1135, 206]] },
+    { "id": "handler-guardrails", "from": "handler", "to": "guardrails", "label": "regras", "variant": "security", "fromSide": "bottom", "toSide": "top" },
+    { "id": "model-send", "from": "model", "to": "send", "label": "resposta", "variant": "emphasis", "fromSide": "bottom", "toSide": "top" },
+    { "id": "timers-site", "from": "timers", "to": "site", "label": "varrer", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "site-handler", "from": "site", "to": "handler", "label": "abordar", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "via": [[810, 206], [810, 130], [1030, 130]] },
+    { "id": "timers-resume", "from": "timers", "to": "resume", "label": "inativos", "variant": "dashed", "fromSide": "right", "toSide": "left" },
+    { "id": "resume-handler", "from": "resume", "to": "handler", "label": "retomar", "variant": "dashed", "fromSide": "top", "toSide": "bottom", "via": [[840, 155], [1030, 155]] },
+    { "id": "timers-followups", "from": "timers", "to": "followups", "label": "devidos", "variant": "dashed", "fromSide": "right", "toSide": "left", "via": [[550, 341], [760, 341]] },
+    { "id": "followups-send", "from": "followups", "to": "send", "label": "programada", "variant": "dashed", "fromSide": "right", "toSide": "bottom", "via": [[1010, 341], [1250, 341]] },
+    { "id": "handler-kommo", "from": "handler", "to": "kommo", "label": "etapa / dono", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[1030, 130], [1030, 475]] },
+    { "id": "handler-supabase", "from": "handler", "to": "supabase", "label": "histórico", "variant": "dashed", "fromSide": "bottom", "toSide": "top", "via": [[1080, 130], [1250, 130], [1250, 475]] },
+    { "id": "timers-reconcile", "from": "timers", "to": "reconcile", "label": "ciclos", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "reconcile-kommo", "from": "reconcile", "to": "kommo", "label": "corrigir CRM", "variant": "dashed", "fromSide": "right", "toSide": "left" },
+    { "id": "reconcile-supabase", "from": "reconcile", "to": "supabase", "label": "fila / identidade", "variant": "dashed", "fromSide": "right", "toSide": "left", "via": [[760, 526], [1170, 526]] }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "Caminho principal", "items": ["WhatsApp → OpenWA → Express", "Gates → fila → atenderLead", "RAG/modelo → envio"] },
+    { "dot": "emerald", "title": "Automação", "items": ["Leads do site", "Retomadas e follow-ups", "Timers de reconciliação"] },
+    { "dot": "rose", "title": "Estado e proteção", "items": ["Guardrails e regras determinísticas", "Kommo para CRM", "Supabase/Postgres para estado"] }
+  ]
+}
